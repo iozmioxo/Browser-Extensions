@@ -1,4 +1,4 @@
-// inject.js v2.1.0 - TikTok 无水印下载 (MAIN world)
+// inject.js v2.1.1 - TikTok 无水印下载 (MAIN world)
 // 改进：
 //   1. 抖音 v4.1 风格的 LRU cache + Map 维护
 //   2. 同时 hook JSON.parse 和 Response.prototype.json
@@ -401,5 +401,5 @@
         }
     }, 300);
 
-    console.log('[TT-DL] inject.js v2.1.0 loaded');
+    console.log('[TT-DL] inject.js v2.1.1 loaded');
 })();

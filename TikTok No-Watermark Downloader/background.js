@@ -1,4 +1,4 @@
-// background.js v2.1.0 - TikTok 无水印下载
+// background.js v2.1.1 - TikTok 无水印下载
 // 职责：
 //   1) 维护 Referer 规则（让 TikTok CDN 域名的请求带正确的 Referer）
 //   2) 解析 CDN 重定向（fetch 跟随 302，把短 URL 换成最终 URL）
@@ -70,7 +70,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         return true;
     }
     if (msg.action === 'fetch_blob') {
-        ensureRules().finally(() => fetchBlob(msg.url, sendResponse));
+        ensureRules().finally(() => fetchBlob(msg.url, msg.credentials, sendResponse));
         return true;
     }
     if (msg.action === 'ping') {
@@ -85,15 +85,15 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 // service worker 的 fetch 不受 web 页面的 CORS 限制，所以由这里代取。
 // 拿到的 ArrayBuffer 通过 chrome.runtime.sendMessage 的结构化克隆传回 content。
 // 注意：消息大小有上限（实测约 64MB），所以这条路径只用于音频等小文件。
-async function fetchBlob(url, sendResponse) {
+async function fetchBlob(url, credentials, sendResponse) {
     const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 60000);   // 大一点的超时，音频可能慢
+    const timer = setTimeout(() => ctrl.abort(), 60000);
 
     try {
         const res = await fetch(url, {
             headers: { 'Referer': REFERER, 'Accept': '*/*' },
             redirect: 'follow',
-            credentials: 'include',
+            credentials: credentials || 'include',
             cache: 'no-store',
             signal: ctrl.signal,
         });

@@ -1,4 +1,4 @@
-// popup.js v2.1.0
+// popup.js v2.1.1
 (function () {
     const DEFAULTS = {
         showFloatBtn: true,

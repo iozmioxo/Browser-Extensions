@@ -1,8 +1,16 @@
-# TikTok No-Watermark Downloader（v2.1.0）
+# TikTok No-Watermark Downloader（v2.1.1）
 
 在 TikTok 网页版下载无水印的视频、图集和视频集。Chrome / Edge Manifest V3 扩展。
 
 姊妹扩展：[Douyin-No-Watermark-Download](../Douyin-No-Watermark-Download) — 共用同一套架构，差异只在数据提取逻辑与 CDN 域。
+
+## 更新说明
+
+### v2.1.1
+
+- 修复图集图片下载失败：TikTok 图集 CDN 会返回 `Access-Control-Allow-Origin: *`，浏览器不允许这种响应和 `credentials: include` 同时使用；图片下载现在使用 `credentials: omit`。
+- `content.js` 的下载链路新增 credentials 透传，`background.js` 的 `fetch_blob` 也支持按调用方指定 credentials。
+- 视频、音频和普通 TikTok CDN 请求仍默认使用 `credentials: include`，只对图集图片下载做特殊处理。
 
 ## 功能
 

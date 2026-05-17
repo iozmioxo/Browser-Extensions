@@ -1,4 +1,4 @@
-// content.js v2.1.0 - TikTok 无水印下载
+// content.js v2.1.1 - TikTok 无水印下载
 // 基于抖音 v4.1 的下载架构 + TikTok 视频/音频分离处理
 //
 // 视频处理策略：
@@ -316,11 +316,13 @@
         }, 30000);
     }
 
-    // 流式 fetch，TikTok 需要 credentials: 'include'（部分 CDN 节点要 cookie）
-    async function fetchWithProgress(url, onProgress) {
+    // 流式 fetch
+    // opts.credentials: 'include' (默认，TikTok 视频/音频可能要 cookie) | 'omit' (图片 CDN，避免 CORS 通配符冲突)
+    async function fetchWithProgress(url, onProgress, opts = {}) {
+        const credentials = opts.credentials || 'include';
         const ctrl = new AbortController();
         const res = await fetch(url, {
-            credentials: 'include',
+            credentials,
             cache: 'no-store',
             signal: ctrl.signal,
         });
@@ -361,8 +363,12 @@
 
     // 通过 background service worker fetch（绕过 CORS）
     // 用于 tiktokcdn.com 等不返回 CORS 头的 CDN
-    async function bgFetchBlob(url) {
-        const res = await sendMessage({ action: 'fetch_blob', url }, 70000);
+    async function bgFetchBlob(url, opts = {}) {
+        const res = await sendMessage({
+            action: 'fetch_blob',
+            url,
+            credentials: opts.credentials || 'include',
+        }, 70000);
         if (!res?.ok) throw new Error(res?.error || 'background fetch failed');
         return {
             blob: new Blob([res.buffer], { type: res.contentType || 'application/octet-stream' }),
@@ -492,7 +498,9 @@
     // ===== 下载主流程 =====
 
     // 只 fetch 拿到 blob，不触发保存。含 CORS fallback。
-    async function fetchOne(cdnUrl, label) {
+    // opts.credentials: 透传给 fetchWithProgress（默认 include）
+    // opts.bgCredentials: 透传给 background fetch（默认跟 credentials 一致，若不同需显式传）
+    async function fetchOne(cdnUrl, label, opts = {}) {
         try {
             return await fetchWithProgress(cdnUrl, (loaded, total) => {
                 const mb = (loaded / 1048576).toFixed(1);
@@ -503,7 +511,7 @@
                 } else {
                     showToast(`⏬ ${label} ${mb}MB`, 2000);
                 }
-            });
+            }, opts);
         } catch (err) {
             const msg = err?.message || '';
             const isCorsLikely = msg.includes('Failed to fetch') || msg.includes('CORS') || msg.includes('NetworkError');
@@ -514,7 +522,7 @@
             log(`${label}: direct fetch blocked (likely CORS), retrying via background...`);
             showToast(`⏬ ${label} retrying via background...`, 2000);
             try {
-                return await bgFetchBlob(cdnUrl);
+                return await bgFetchBlob(cdnUrl, { credentials: opts.bgCredentials || opts.credentials || 'include' });
             } catch (err2) {
                 warn(`${label} background fetch also failed:`, err2.message);
                 return null;
@@ -534,8 +542,8 @@
     }
 
     // 兼容旧调用：fetch + 保存。仍然用于图片/音频。
-    async function downloadOne(cdnUrl, filename, label) {
-        const result = await fetchOne(cdnUrl, label);
+    async function downloadOne(cdnUrl, filename, label, opts = {}) {
+        const result = await fetchOne(cdnUrl, label, opts);
         if (!result) return false;
         if (!validateBlobSize(result.blob, filename, label)) return false;
         triggerBrowserDownload(result.blob, filename);
@@ -809,6 +817,8 @@
     }
 
     // 图片下载：尝试 url + 所有备选 URL（TikTok 图集 url_list 通常有多个 CDN）
+    // 用 credentials: 'omit' 避免 CORS 通配符冲突（图片 CDN 返回 ACAO: *，
+    // 与 credentials: 'include' 冲突，浏览器会拒绝）
     async function downloadImage(primaryUrl, allUrls, filename, label) {
         const candidates = [primaryUrl];
         for (const u of allUrls) {
@@ -817,7 +827,7 @@
         for (const url of candidates) {
             const res = await resolveUrl(url);
             const finalUrl = (res?.ok && res.cdnUrl) ? res.cdnUrl : url;
-            const ok = await downloadOne(finalUrl, filename, label);
+            const ok = await downloadOne(finalUrl, filename, label, { credentials: 'omit' });
             if (ok) return true;
         }
         return false;
@@ -954,7 +964,7 @@
     async function init() {
         await loadConfig();
         createFloatButton();
-        log('v2.1.0 loaded | config:', CFG);
+        log('v2.1.1 loaded | config:', CFG);
     }
 
     if (document.readyState === 'complete' || document.readyState === 'interactive') {

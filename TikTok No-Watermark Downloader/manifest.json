@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "TikTok 无水印下载",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "description": "在 TikTok 网页版下载无水印视频/图集。大视频自动分离视频+音频或下载含音频版本（可切换）。点击悬浮按钮或 Shift+D。",
   "permissions": [
     "storage",
